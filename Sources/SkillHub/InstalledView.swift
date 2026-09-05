@@ -17,7 +17,7 @@ struct InstalledView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 7) {
                     Text(source == "agents" ? "Agent skills" : "Claude skills").font(.system(size: 29, weight: .bold, design: .rounded))
-                    Text("Installed globally. Ready for your next idea.").foregroundStyle(.secondary)
+                    Text("Browse globally installed skills.").foregroundStyle(.secondary)
                 }
                 Spacer()
                 Label("\(skills.count) installed", systemImage: "checkmark.circle.fill").font(.system(size: 11, weight: .medium)).foregroundStyle(hubTeal)
@@ -72,8 +72,8 @@ struct InstalledView: View {
                         }.padding(18)
                         Divider()
                         if let file = selectedFile { DocumentView(url: file).id(file) }
-                        else { EmptyState(icon: "folder", title: "Explore this bundle", detail: "Expand the skill’s file tree and select a document to preview it.") }
-                    } else { EmptyState(icon: "doc.text.magnifyingglass", title: "A little expertise, on hand", detail: "Select a skill to read its instructions. Expand its tree to explore references and subskills.") }
+                        else { EmptyState(icon: "folder", title: "Select a file", detail: "Expand the skill’s file tree and select a document to preview it.") }
+                    } else { EmptyState(icon: "doc.text.magnifyingglass", title: "Select a skill", detail: "Select a skill to read its instructions. Expand its file tree to view references and subskills.") }
                 }.frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 16))
                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.07)))

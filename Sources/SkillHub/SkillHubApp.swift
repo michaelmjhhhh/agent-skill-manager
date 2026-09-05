@@ -4,6 +4,7 @@ import AppKit
 let hubTeal = Color(red: 0.05, green: 0.52, blue: 0.48)
 
 @main struct SkillHubApp: App {
+    @NSApplicationDelegateAdaptor(HubAppDelegate.self) private var appDelegate
     @StateObject private var store = HubStore()
     @AppStorage("appearance") private var appearance = "System"
     var body: some Scene {
@@ -52,7 +53,7 @@ struct HubView: View {
                         Image(systemName: "square.stack.3d.up.fill").font(.title2).foregroundStyle(hubTeal)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Skill Hub").font(.system(size: 20, weight: .bold, design: .rounded))
-                            Text("A home for your capabilities").font(.system(size: 10)).foregroundStyle(.secondary)
+                            Text("Local agent skills").font(.system(size: 10)).foregroundStyle(.secondary)
                         }
                     }.padding(.top, 30)
                     VStack(alignment: .leading, spacing: 7) {
@@ -85,7 +86,7 @@ struct HubView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .task { await store.refresh() }
         .onChange(of: phase) { value in if value == .active { Task { await store.refresh() } } }
-        .alert("Something needs attention", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
+        .alert("Error", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
             Button("OK") { store.error = nil }
         } message: { Text(store.error ?? "") }
     }

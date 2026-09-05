@@ -1,15 +1,21 @@
 # Skill Hub
 
-A local-first native macOS skill browser and personal collection, built with SwiftUI and AppKit. MarkdownUI provides native GitHub-flavored Markdown rendering (no WebView). No account or background network requests; remote Markdown images are not loaded. The first build downloads Swift package dependencies.
+A native macOS app for browsing installed agent skills and managing a local skill collection. Built with SwiftUI and AppKit, with MarkdownUI for native Markdown previews.
+
+The app reads `~/.agents/skills` and `~/.claude/skills`. Collection entries are stored separately from installed skills. No account is required, and the app does not make background network requests.
 
 ## Run
 
 Requires macOS 13+ and Xcode Command Line Tools with Swift 5.9+.
 
 ```sh
+git clone https://github.com/michaelmjhhhh/agent-skill-hub.git
+cd agent-skill-hub
 ./scripts/build-app.sh
 open "dist/Skill Hub.app"
 ```
+
+The first build downloads Swift package dependencies. `Package.resolved` records their versions.
 
 Drag `dist/Skill Hub.app` into Applications if desired. The build script creates an ad-hoc signed app for your current architecture. Distribution to other Macs would require Developer ID signing and notarization.
 
@@ -24,7 +30,7 @@ For development: `swift run`. Tests: `swift test`. Open `Package.swift` in Xcode
 - Manually curate a separate collection with name, source URL, description, category, installation command, and favorite flag.
 - Search, filter by category/favorites, sort by name or newest, edit, remove, and import/export JSON.
 - Organized collection cards with category badges, compact source links, two-line command previews, and a separate action row. Empty or placeholder commands such as `N/A` disable installation.
-- Minimal Settings page with a pane-width native scrollbar that follows macOS visibility preferences.
+- Minimal Settings page and consistent collection toolbar controls. All app scroll views use native auto-fading overlay scrollbars instead of persistent tracks, without changing your system preferences.
 - Save an installed skill to your collection using its bookmark button, then add its source and command manually.
 - Run a saved command in Terminal or iTerm2 only after explicit confirmation. Copy-only is also available.
 - System, light, and dark appearance; collapsible sidebar; rounded panels and controls.
@@ -34,7 +40,7 @@ For development: `swift run`. Tests: `swift test`. Open `Package.swift` in Xcode
 
 Installed skills are read-only. Removing a collection entry does not uninstall a skill.
 
-Collection data lives at:
+Collection data is stored at:
 
 ```
 ~/Library/Application Support/SkillHub/collection.json
@@ -44,10 +50,10 @@ Changes are written atomically. Invalid existing collection JSON is not overwrit
 
 Installation commands run as your user in your home directory, in a visible terminal. Inspect commands and trust their source before running them. The app writes a private executable `.command` file to a unique system temporary directory and opens it with your selected terminal. Those files remain until system temporary-file cleanup. Installation completion is not tracked; refresh the library afterward.
 
-## MVP boundaries
+## Limitations
 
 Markdown uses MarkdownUI's GitHub-flavored parser and native SwiftUI rendering. Embedded HTML, executable diagrams, syntax highlighting, and in-document anchor navigation are not provided. Remote images stay blocked; local image previews are limited to 10 MB. YAML metadata parsing covers common scalar and multiline name/description fields, not arbitrary YAML. Text previews are limited to 2 MB; file trees are bounded to 12 levels and 500 entries per directory, excluding hidden files, node_modules, and Python caches. There is no automatic repository fetching, installation detection for bookmarks, uninstalling, or cloud sync.
 
 ## Verification
 
-Twelve automated tests cover metadata, nested bundles, standalone Markdown, symlink traversal/cycles, missing directories, collection persistence/corruption, stable tree indentation, frontmatter handling, rich Markdown parsing, native Markdown layout, compact source labels, placeholder commands, and consistent card layout in light/dark modes. Debug and release builds verified locally. The app was launched successfully; full-window screenshot capture was unavailable in the build session. Real installation commands were deliberately not executed during testing.
+Fourteen automated tests cover metadata, nested bundles, standalone Markdown, symlink traversal/cycles, missing directories, collection persistence/corruption, stable tree indentation, frontmatter handling, rich Markdown parsing, native Markdown layout, compact source labels, placeholder commands, consistent card layout in light/dark modes, nested overlay scrollbar configuration, and collection toolbar sizing. Debug and release builds verified locally. The app was launched successfully; full-window screenshot capture was unavailable in the build session. Real installation commands were deliberately not executed during testing.

@@ -1,4 +1,30 @@
+# Swift Package Manager build output and local workspace state
 .build/
-dist/
-.DS_Store
 .swiftpm/
+
+# Packaged app and Xcode build output
+dist/
+build/
+DerivedData/
+*.xcarchive
+*.dSYM/
+
+# Per-user Xcode settings
+xcuserdata/
+*.xcuserstate
+
+# macOS metadata
+.DS_Store
+.AppleDouble
+._*
+
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+*.p12
+*.p8
+*.mobileprovision
+*.provisionprofile
+
+# Keep Package.resolved tracked for reproducible application builds.

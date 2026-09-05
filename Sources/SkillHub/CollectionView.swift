@@ -23,22 +23,17 @@ struct CollectionView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 7) {
                     Text("Your skill collection").font(.system(size: 29, weight: .bold, design: .rounded))
-                    Text("Keep the good finds. Reach for them when inspiration strikes.").foregroundStyle(.secondary)
+                    Text("Save skill links, categories, and installation commands.").foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button { draft = SavedSkill() } label: { Label("Add skill", systemImage: "plus") }.buttonStyle(.borderedProminent).controlSize(.large).keyboardShortcut("n")
             }
-            HStack(spacing: 12) {
-                HStack { Image(systemName: "magnifyingglass").foregroundStyle(.secondary); TextField("Search your collection…", text: $search).textFieldStyle(.plain) }
-                    .padding(11).background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
-                Picker("Category", selection: $category) { Text("All categories").tag("All categories"); ForEach(categories, id: \.self) { Text($0).tag($0) } }.labelsHidden().frame(width: 155)
-                Picker("Sort", selection: $sort) { Text("Name").tag("Name"); Text("Newest").tag("Newest") }.frame(width: 130)
-                Toggle(isOn: $favorites) { Image(systemName: "star.fill") }.toggleStyle(.button).help("Show favorites only")
-                Menu { Button("Import JSON…") { store.importCollection() }; Button("Export JSON…") { store.exportCollection() } } label: { Image(systemName: "ellipsis") }.frame(width: 40)
-            }
+            CollectionToolbar(search: $search, category: $category, sort: $sort, favorites: $favorites,
+                              categories: categories, importCollection: store.importCollection,
+                              exportCollection: store.exportCollection)
             if items.isEmpty {
                 VStack {
-                    EmptyState(icon: "bookmark", title: store.collection.isEmpty ? "Build your own little library" : "No matching skills", detail: store.collection.isEmpty ? "Save a name, a link, and an install command. Collecting a skill doesn’t install anything." : "Try another search or category.")
+                    EmptyState(icon: "bookmark", title: store.collection.isEmpty ? "No saved skills" : "No matching skills", detail: store.collection.isEmpty ? "Add a skill to your collection. Saving an entry does not install it." : "Try another search or category.")
                     if store.collection.isEmpty { Button("Add your first skill") { draft = SavedSkill() }.buttonStyle(.borderedProminent).padding(.bottom, 80) }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -82,13 +77,13 @@ struct CollectionEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(store.collection.contains(where: { $0.id == skill.id }) ? "Edit skill" : "Save a good find").font(.system(size: 25, weight: .bold, design: .rounded))
-                Text("A bookmark today. A new capability tomorrow.").foregroundStyle(.secondary)
+                Text(store.collection.contains(where: { $0.id == skill.id }) ? "Edit skill" : "Add skill").font(.system(size: 25, weight: .bold, design: .rounded))
+                Text("Enter the skill details. Only the name is required.").foregroundStyle(.secondary)
             }
             field("NAME", placeholder: "e.g. Interface design", text: $skill.name)
             field("SOURCE URL", placeholder: "https://github.com/owner/skills", text: $skill.url)
             if !validURL { Text("Enter a valid http or https URL.").font(.caption).foregroundStyle(.red) }
-            field("DESCRIPTION", placeholder: "What makes this skill useful?", text: $skill.summary)
+            field("DESCRIPTION", placeholder: "Briefly describe what the skill does", text: $skill.summary)
             field("CATEGORY", placeholder: "e.g. Development, Design, Writing", text: $skill.category)
             VStack(alignment: .leading, spacing: 8) {
                 Text("INSTALL COMMAND").font(.system(size: 10, weight: .semibold)).tracking(1).foregroundStyle(.secondary)
