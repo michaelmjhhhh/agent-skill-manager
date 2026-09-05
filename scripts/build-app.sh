@@ -19,6 +19,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleVersion</key><string>1</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
 <key>NSHighResolutionCapable</key><true/>
+<key>NSAppleEventsUsageDescription</key><string>Skill Hub sends installation commands you confirm to a new session in your selected terminal.</string>
 </dict></plist>
 PLIST
 codesign --force --deep --sign - "$APP"

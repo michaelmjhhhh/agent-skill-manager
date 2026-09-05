@@ -32,7 +32,8 @@ For development: `swift run`. Tests: `swift test`. Open `Package.swift` in Xcode
 - Organized collection cards with category badges, compact source links, two-line command previews, and a separate action row. Empty or placeholder commands such as `N/A` disable installation.
 - Minimal Settings page and consistent collection toolbar controls. All app scroll views use native auto-fading overlay scrollbars instead of persistent tracks, without changing your system preferences.
 - Save an installed skill to your collection using its bookmark button, then add its source and command manually.
-- Run a saved command in Terminal or iTerm2 only after explicit confirmation. Copy-only is also available.
+- Choose an installed terminal `.app` from Applications in Settings. Its name, icon, and path are shown, and the selection is saved. Existing Terminal/iTerm preferences remain supported.
+- Run a saved command after confirmation using native AppleScript integration with Terminal, iTerm2, or Ghostty 1.3+. Each execution opens a new session in your home directory. No temporary installation script is created. Other terminals use **Copy command & open** for manual execution.
 - System, light, and dark appearance; collapsible sidebar; rounded panels and controls.
 - Refresh with ⌘R. Skills also refresh when the app becomes active. ⌘N adds a bookmark while viewing Collection.
 
@@ -48,7 +49,9 @@ Collection data is stored at:
 
 Changes are written atomically. Invalid existing collection JSON is not overwritten. Import merges by UUID, keeping existing entries. Export periodically for backups. Preferences are stored with macOS UserDefaults.
 
-Installation commands run as your user in your home directory, in a visible terminal. Inspect commands and trust their source before running them. The app writes a private executable `.command` file to a unique system temporary directory and opens it with your selected terminal. Those files remain until system temporary-file cleanup. Installation completion is not tracked; refresh the library afterward.
+Direct installation uses the selected terminal's AppleScript API and runs with your user permissions. The command is passed as an argument, not inserted into AppleScript source. macOS may request Automation permission; if denied, enable it in **System Settings > Privacy & Security > Automation**, or use **Copy command & open**. Ghostty also needs its `macos-applescript` setting enabled (the default).
+
+**Copy command & open** only copies the command and opens the chosen app; it does not paste or execute anything. Inspect commands and trust their source before running them. Commands are never automatically retried. Installation completion is not tracked; refresh the library afterward.
 
 ## Limitations
 
@@ -56,4 +59,4 @@ Markdown uses MarkdownUI's GitHub-flavored parser and native SwiftUI rendering. 
 
 ## Verification
 
-Fourteen automated tests cover metadata, nested bundles, standalone Markdown, symlink traversal/cycles, missing directories, collection persistence/corruption, stable tree indentation, frontmatter handling, rich Markdown parsing, native Markdown layout, compact source labels, placeholder commands, consistent card layout in light/dark modes, nested overlay scrollbar configuration, and collection toolbar sizing. Debug and release builds verified locally. The app was launched successfully; full-window screenshot capture was unavailable in the build session. Real installation commands were deliberately not executed during testing.
+Twenty-one automated tests cover metadata, nested bundles, standalone Markdown, symlink traversal/cycles, missing directories, collection persistence/corruption, stable tree indentation, frontmatter handling, rich Markdown parsing, native Markdown layout, compact source labels, placeholder commands, consistent card layout in light/dark modes, nested overlay scrollbar configuration, collection toolbar sizing, terminal selection compatibility, application bundle validation, terminal driver selection, command argument isolation, and AppleScript compilation against installed Terminal and Ghostty dictionaries. Debug and release builds verified locally. The app was launched successfully; full-window screenshot capture was unavailable in the build session. Real installation commands were deliberately not executed during testing.

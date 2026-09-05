@@ -4,6 +4,10 @@ import AppKit
 struct CollectionView: View {
     @EnvironmentObject var store: HubStore
     @AppStorage("terminal") private var terminal = "Terminal"
+    @AppStorage("terminalApplicationPath") private var terminalApplicationPath = ""
+    private var terminalApplication: TerminalApplication {
+        TerminalApplication(customPath: terminalApplicationPath, legacyName: terminal)
+    }
     @State private var search = ""
     @State private var category = "All categories"
     @State private var sort = "Name"
@@ -47,18 +51,38 @@ struct CollectionView: View {
         .sheet(item: $draft) { CollectionEditor(initial: $0) }
         .alert("Run installation command?", isPresented: Binding(get: { installing != nil }, set: { if !$0 { installing = nil } })) {
             Button("Cancel", role: .cancel) { installing = nil }
-            Button("Run in \(terminal)", role: .destructive) {
-                guard let skill = installing else { return }
-                do { try TerminalLauncher.launch(command: skill.command, application: terminal) }
-                catch { store.error = error.localizedDescription }
-                installing = nil
+            Button("Copy command & open") { performInstallation(copyOnly: true) }
+            if terminalApplication.driver != nil {
+                Button("Run in \(terminalApplication.displayName)", role: .destructive) {
+                    performInstallation(copyOnly: false)
+                }
             }
-        } message: { Text("Only run commands you trust. This runs with your user permissions in your home directory.\n\n\(installing?.command ?? "")") }
+        } message: {
+            Text((terminalApplication.driver != nil
+                  ? "Run this command in a new \(terminalApplication.displayName) session, starting in your home directory. macOS may request Automation permission. Only run commands you trust."
+                  : "Direct execution is not supported for this terminal version. Copy the command, then paste and run it yourself.")
+                 + "\n\n\(installing?.command ?? "")")
+        }
         .alert("Remove from collection?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
             Button("Cancel", role: .cancel) { deleting = nil }
             Button("Remove", role: .destructive) { if let deleting { store.delete(deleting) }; deleting = nil }
         } message: { Text("This only removes the bookmark. Installed files are never deleted.") }
     }
+    private func performInstallation(copyOnly: Bool) {
+        guard let skill = installing else { return }
+        let application = terminalApplication
+        installing = nil
+        Task {
+            do {
+                if copyOnly {
+                    try await TerminalLauncher.copyAndOpen(command: skill.command, application: application)
+                } else {
+                    try await TerminalLauncher.launch(command: skill.command, application: application)
+                }
+            } catch { store.error = error.localizedDescription }
+        }
+    }
+
     func card(_ skill: SavedSkill) -> some View {
         SavedSkillCard(skill: skill, favorite: {
             var updated = skill

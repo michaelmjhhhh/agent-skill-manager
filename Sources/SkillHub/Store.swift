@@ -69,25 +69,6 @@ import AppKit
     }
 }
 
-enum TerminalLauncher {
-    static func launch(command: String, application: String) throws {
-        // A .command file avoids interpolating untrusted commands into AppleScript.
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("SkillHub-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let file = directory.appendingPathComponent("Install skill.command")
-        let script = "#!/bin/zsh\ncd \"$HOME\"\n" + command + "\n__skillhub_status=$?\nprintf '\\nFinished (exit %s). You may close this window.\\n' \"$__skillhub_status\"\nexit \"$__skillhub_status\"\n"
-        try script.write(to: file, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: file.path)
-        let bundle = application == "iTerm" ? "com.googlecode.iterm2" : "com.apple.Terminal"
-        guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) else {
-            throw NSError(domain: "SkillHub", code: 1, userInfo: [NSLocalizedDescriptionKey: "\(application) is not installed. Choose another terminal in Settings."])
-        }
-        NSWorkspace.shared.open([file], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration()) { _, error in
-            if let error { Task { @MainActor in NSAlert(error: error).runModal() } }
-        }
-    }
-}
-
 func copyText(_ text: String) {
     NSPasteboard.general.clearContents()
     NSPasteboard.general.setString(text, forType: .string)

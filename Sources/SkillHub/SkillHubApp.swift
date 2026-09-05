@@ -96,11 +96,6 @@ struct HubView: View {
                 Image(systemName: item.icon).frame(width: 20)
                 Text(item.title)
                 Spacer()
-                if item != .settings {
-                    Text("\(item == .agents ? store.agents.count : item == .claude ? store.claude.count : store.collection.count)")
-                        .font(.system(size: 10, weight: .semibold)).padding(.horizontal, 7).padding(.vertical, 3)
-                        .background(page == item ? hubTeal.opacity(0.12) : Color.secondary.opacity(0.08), in: Capsule())
-                }
             }.font(.system(size: 13, weight: page == item ? .semibold : .regular))
                 .padding(11).foregroundStyle(page == item ? hubTeal : .primary)
                 .background(page == item ? hubTeal.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 10))
