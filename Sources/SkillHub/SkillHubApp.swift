@@ -8,7 +8,7 @@ let hubTeal = Color(red: 0.05, green: 0.52, blue: 0.48)
     @StateObject private var store = HubStore()
     @AppStorage("appearance") private var appearance = "System"
     var body: some Scene {
-        WindowGroup {
+        WindowGroup("Agent Skill Manager") {
             HubView().environmentObject(store)
                 .preferredColorScheme(appearance == "System" ? nil : appearance == "Dark" ? .dark : .light)
                 .tint(hubTeal)
@@ -49,13 +49,10 @@ struct HubView: View {
         HStack(spacing: 0) {
             if sidebar {
                 VStack(alignment: .leading, spacing: 28) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "square.stack.3d.up.fill").font(.title2).foregroundStyle(hubTeal)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Skill Hub").font(.system(size: 20, weight: .bold, design: .rounded))
-                            Text("Local agent skills").font(.system(size: 10)).foregroundStyle(.secondary)
-                        }
-                    }.padding(.top, 30)
+                    Text("Agent Skill Manager")
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 30)
                     VStack(alignment: .leading, spacing: 7) {
                         Text("WORKSPACE").font(.system(size: 10, weight: .semibold)).tracking(1.6).foregroundStyle(.secondary).padding(.bottom, 7)
                         ForEach([HubPage.agents, .claude, .collection], id: \.self) { navigation($0) }

@@ -145,7 +145,7 @@ enum TerminalDriver: Equatable {
             guard process.terminationStatus == 0 else {
                 let detail = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
                 let explanation = detail.contains("-1743")
-                    ? "Automation permission was denied. Allow Skill Hub to control the terminal in System Settings > Privacy & Security > Automation, or use Copy command & open."
+                    ? "Automation permission was denied. Allow Agent Skill Manager to control the terminal in System Settings > Privacy & Security > Automation, or use Copy command & open."
                     : "Could not send the command to the terminal. No retry was attempted. You can use Copy command & open."
                 throw NSError(domain: "SkillHub.Terminal", code: Int(process.terminationStatus),
                               userInfo: [NSLocalizedDescriptionKey: "\(explanation)\n\n\(detail)"])

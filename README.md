@@ -1,4 +1,4 @@
-# Skill Hub
+# Agent Skill Manager
 
 A native macOS app for browsing installed agent skills and managing a local skill collection. Built with SwiftUI and AppKit, with MarkdownUI for native Markdown previews.
 
@@ -12,12 +12,12 @@ Requires macOS 13+ and Xcode Command Line Tools with Swift 5.9+.
 git clone https://github.com/michaelmjhhhh/agent-skill-hub.git
 cd agent-skill-hub
 ./scripts/build-app.sh
-open "dist/Skill Hub.app"
+open "dist/Agent Skill Manager.app"
 ```
 
 The first build downloads Swift package dependencies. `Package.resolved` records their versions.
 
-Drag `dist/Skill Hub.app` into Applications if desired. The build script creates an ad-hoc signed app for your current architecture. Distribution to other Macs would require Developer ID signing and notarization.
+Drag `dist/Agent Skill Manager.app` into Applications if desired. The build script creates an ad-hoc signed app for your current architecture. Distribution to other Macs would require Developer ID signing and notarization.
 
 For development: `swift run`. Tests: `swift test`. Open `Package.swift` in Xcode to develop there.
 
@@ -46,6 +46,8 @@ Collection data is stored at:
 ```
 ~/Library/Application Support/SkillHub/collection.json
 ```
+
+The internal `SkillHub` data directory and bundle identifier are retained for compatibility with existing installations.
 
 Changes are written atomically. Invalid existing collection JSON is not overwritten. Import merges by UUID, keeping existing entries. Export periodically for backups. Preferences are stored with macOS UserDefaults.
 
