@@ -9,6 +9,10 @@ struct InstalledView: View {
     @State private var selectedFile: URL?
     @State private var expanded: Set<String> = []
     @State private var draft: SavedSkill?
+    @State private var removal: SkillRemoval?
+    @AppStorage("agentsPath") private var agentsPath = "~/.agents/skills"
+    @AppStorage("claudePath") private var claudePath = "~/.claude/skills"
+    private var rootPath: String { source == "agents" ? agentsPath : claudePath }
     var skills: [InstalledSkill] { source == "agents" ? store.agents : store.claude }
     var filtered: [InstalledSkill] { skills.filter { search.isEmpty || "\($0.name) \($0.summary)".localizedCaseInsensitiveContains(search) } }
     var selected: InstalledSkill? { skills.first { $0.id == selectedID } }
@@ -61,15 +65,25 @@ struct InstalledView: View {
                 }.padding(.trailing, 12).frame(minWidth: 230, idealWidth: 275, maxWidth: 360)
                 VStack(spacing: 0) {
                     if let skill = selected {
-                        HStack {
+                        VStack(alignment: .leading, spacing: 12) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(skill.name).font(.headline)
                                 Text(selectedFile?.lastPathComponent ?? "Skill bundle").font(.caption).foregroundStyle(.secondary)
                             }
-                            Spacer()
-                            Button { draft = SavedSkill(name: skill.name, summary: skill.summary) } label: { Image(systemName: "bookmark.badge.plus") }.help("Save to collection")
-                            Button { NSWorkspace.shared.activateFileViewerSelecting([selectedFile ?? skill.folder]) } label: { Label("Finder", systemImage: "arrow.up.right.square") }.help("Reveal in Finder")
-                        }.padding(18)
+                            HStack {
+                                Button { draft = SavedSkill(name: skill.name, summary: skill.summary) } label: {
+                                    Label("Save skill", systemImage: "bookmark")
+                                }.fixedSize().help("Save to collection")
+                                Button(role: .destructive) {
+                                    do { removal = try SkillRemoval.prepare(target: skill.folder, rootPath: rootPath) }
+                                    catch { store.error = error.localizedDescription }
+                                } label: { Label("Remove…", systemImage: "trash") }
+                                    .fixedSize().disabled(store.scanning).help("Move the whole selected skill to Trash")
+                                Button { NSWorkspace.shared.activateFileViewerSelecting([selectedFile ?? skill.folder]) } label: {
+                                    Label("Finder", systemImage: "arrow.up.right.square")
+                                }.help("Reveal in Finder")
+                            }.controlSize(.small)
+                        }.frame(maxWidth: .infinity, alignment: .leading).padding(18)
                         Divider()
                         if let file = selectedFile { DocumentView(url: file).id(file) }
                         else { EmptyState(icon: "folder", title: "Select a file", detail: "Expand the skill’s file tree and select a document to preview it.") }
@@ -82,6 +96,30 @@ struct InstalledView: View {
         .onAppear { selectFirst() }
         .onChange(of: skills.map(\.id)) { _ in selectFirst() }
         .sheet(item: $draft) { item in CollectionEditor(initial: item) }
+        .alert("Move selected skill to Trash?", isPresented: Binding(get: { removal != nil }, set: { if !$0 { removal = nil } })) {
+            Button("Cancel", role: .cancel) { removal = nil }
+            Button("Move to Trash", role: .destructive) { removeSelectedSkill() }
+        } message: {
+            if let removal {
+                Text((removal.isLink
+                      ? "Only this symbolic link will be removed. Its target and files will stay in place."
+                      : removal.isDirectory
+                        ? "The entire skill folder and its contents will be removed, not just the open document."
+                        : "This standalone Markdown skill file will be removed.")
+                     + "\n\n" + removal.target.path
+                     + "\n\nYou can restore it from Trash. Saved collection entries will remain.")
+            }
+        }
+    }
+    private func removeSelectedSkill() {
+        guard let request = removal, !store.scanning else { return }
+        removal = nil
+        do {
+            try request.moveToTrash(rootPath: rootPath)
+            selectedID = nil
+            selectedFile = nil
+            Task { await store.refresh() }
+        } catch { store.error = error.localizedDescription }
     }
     func selectFirst() {
         if selected == nil { selectedID = skills.first?.id; selectedFile = skills.first?.document }

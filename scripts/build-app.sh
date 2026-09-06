@@ -4,10 +4,10 @@ cd "$(dirname "$0")/.."
 VERSION="${VERSION:-0.1.0}"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "VERSION must be X.Y.Z" >&2; exit 1; }
 # Release builds support both Apple silicon and Intel.
-ARCH_ARGS=()
-if [[ "${UNIVERSAL:-0}" == 1 ]]; then ARCH_ARGS=(--arch arm64 --arch x86_64); fi
-swift build -c release "${ARCH_ARGS[@]}"
-BIN_DIR="$(swift build -c release "${ARCH_ARGS[@]}" --show-bin-path)"
+BUILD_ARGS=(-c release)
+if [[ "${UNIVERSAL:-0}" == 1 ]]; then BUILD_ARGS+=(--arch arm64 --arch x86_64); fi
+swift build "${BUILD_ARGS[@]}"
+BIN_DIR="$(swift build "${BUILD_ARGS[@]}" --show-bin-path)"
 APP="$PWD/dist/Agent Skill Manager.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
