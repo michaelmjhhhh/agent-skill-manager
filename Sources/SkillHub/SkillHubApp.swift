@@ -90,7 +90,12 @@ struct HubView: View {
     private func navigation(_ item: HubPage) -> some View {
         Button { page = item } label: {
             HStack(spacing: 10) {
-                Image(systemName: item.icon).frame(width: 20)
+                if item == .claude {
+                    ClaudeBrandIcon()
+                        .frame(width: 20, height: 20).accessibilityHidden(true)
+                } else {
+                    Image(systemName: item.icon).frame(width: 20)
+                }
                 Text(item.title)
                 Spacer()
             }.font(.system(size: 13, weight: page == item ? .semibold : .regular))
