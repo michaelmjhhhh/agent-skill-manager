@@ -33,7 +33,7 @@ For development: `swift run`. Tests: `swift test`. Open `Package.swift` in Xcode
 - Minimal Settings page and consistent collection toolbar controls. All app scroll views use native auto-fading overlay scrollbars instead of persistent tracks, without changing your system preferences.
 - Save an installed skill to your collection using its bookmark button, then add its source and command manually.
 - Choose an installed terminal `.app` from Applications in Settings. Its name, icon, and path are shown, and the selection is saved. Existing Terminal/iTerm preferences remain supported.
-- Run a saved command after confirmation using native AppleScript integration with Terminal, iTerm2, or Ghostty 1.3+. Each execution opens a new session in your home directory. No temporary installation script is created. Other terminals use **Copy command & open** for manual execution.
+- Run a saved command after confirmation using native AppleScript integration with Terminal, iTerm2, or Ghostty 1.3+. Each execution lets you choose the session's working directory before opening a new terminal session. No temporary installation script is created. Other terminals use **Copy command & open** for manual execution.
 - System, light, and dark appearance; collapsible sidebar; rounded panels and controls.
 - Refresh with ⌘R. Skills also refresh when the app becomes active. ⌘N adds a bookmark while viewing Collection.
 

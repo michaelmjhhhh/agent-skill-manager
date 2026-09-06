@@ -53,13 +53,13 @@ struct CollectionView: View {
             Button("Cancel", role: .cancel) { installing = nil }
             Button("Copy command & open") { performInstallation(copyOnly: true) }
             if terminalApplication.driver != nil {
-                Button("Run in \(terminalApplication.displayName)", role: .destructive) {
-                    performInstallation(copyOnly: false)
+                Button("Choose folder and run in \(terminalApplication.displayName)", role: .destructive) {
+                    chooseInstallationDirectory()
                 }
             }
         } message: {
             Text((terminalApplication.driver != nil
-                  ? "Run this command in a new \(terminalApplication.displayName) session, starting in your home directory. macOS may request Automation permission. Only run commands you trust."
+                  ? "Choose a folder for the new \(terminalApplication.displayName) session, then run this command there. macOS may request Automation permission. Only run commands you trust."
                   : "Direct execution is not supported for this terminal version. Copy the command, then paste and run it yourself.")
                  + "\n\n\(installing?.command ?? "")")
         }
@@ -68,7 +68,23 @@ struct CollectionView: View {
             Button("Remove", role: .destructive) { if let deleting { store.delete(deleting) }; deleting = nil }
         } message: { Text("This only removes the bookmark. Installed files are never deleted.") }
     }
-    private func performInstallation(copyOnly: Bool) {
+    private func chooseInstallationDirectory() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose installation folder"
+        panel.message = "Choose the folder where the installation command should run."
+        panel.prompt = "Choose"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+        guard panel.runModal() == .OK, let directory = panel.url else {
+            installing = nil
+            return
+        }
+        performInstallation(copyOnly: false, workingDirectory: directory)
+    }
+
+    private func performInstallation(copyOnly: Bool, workingDirectory: URL? = nil) {
         guard let skill = installing else { return }
         let application = terminalApplication
         installing = nil
@@ -76,8 +92,8 @@ struct CollectionView: View {
             do {
                 if copyOnly {
                     try await TerminalLauncher.copyAndOpen(command: skill.command, application: application)
-                } else {
-                    try await TerminalLauncher.launch(command: skill.command, application: application)
+                } else if let workingDirectory {
+                    try await TerminalLauncher.launch(command: skill.command, application: application, workingDirectory: workingDirectory)
                 }
             } catch { store.error = error.localizedDescription }
         }

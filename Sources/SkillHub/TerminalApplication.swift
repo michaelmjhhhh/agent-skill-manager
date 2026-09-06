@@ -123,13 +123,13 @@ enum TerminalDriver: Equatable {
 }
 
 @MainActor enum TerminalLauncher {
-    static func launch(command: String, application: TerminalApplication) async throws {
+    static func launch(command: String, application: TerminalApplication, workingDirectory: URL) async throws {
         let app = try application.validatedURL()
         guard let driver = application.driver else {
             throw NSError(domain: "SkillHub.Terminal", code: 2, userInfo: [NSLocalizedDescriptionKey:
                 "Direct execution is not supported for this terminal version. Use Copy command & open."])
         }
-        let arguments = driver.arguments(app: app, command: command, home: NSHomeDirectory())
+        let arguments = driver.arguments(app: app, command: command, home: workingDirectory.path)
         // No temporary files, simulated keystrokes, or Accessibility permission.
         // Each driver creates a new session; existing sessions are not modified.
         try await Task.detached {
