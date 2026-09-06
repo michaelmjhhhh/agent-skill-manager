@@ -10,10 +10,17 @@ concurrency:
   cancel-in-progress: true
 jobs:
   test-and-package:
-    runs-on: macos-14
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Verify Xcode version
+        run: |
+          xcodebuild -version
+          test "$(xcodebuild -version)" = $'Xcode 26.5\nBuild version 17F42'
+          xcrun --show-sdk-version
       - name: Test
         run: swift test
       - name: Build and verify universal DMG

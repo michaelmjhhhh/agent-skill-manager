@@ -9,10 +9,17 @@ concurrency:
   cancel-in-progress: false
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Verify Xcode version
+        run: |
+          xcodebuild -version
+          test "$(xcodebuild -version)" = $'Xcode 26.5\nBuild version 17F42'
+          xcrun --show-sdk-version
       - name: Validate version
         env:
           TAG: ${{ github.ref_name }}
