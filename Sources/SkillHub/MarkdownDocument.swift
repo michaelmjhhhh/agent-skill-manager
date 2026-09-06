@@ -3,7 +3,7 @@ import AppKit
 import MarkdownUI
 
 /// GitHub-flavored Markdown rendered as native SwiftUI views, not HTML/WebKit.
-struct MarkdownDocument: View {
+struct MarkdownDocument: View, Equatable {
     let text: String
     let baseURL: URL
 
@@ -119,7 +119,12 @@ private struct LocalMarkdownImage: View {
                     .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
             }
         }.task(id: url) {
-            image = url.flatMap { LocalImageLoader.load($0) }
+            let target = url
+            let loaded = await Task.detached(priority: .userInitiated) { () -> NSImage? in
+                target.flatMap { LocalImageLoader.load($0) }
+            }.value
+            guard !Task.isCancelled else { return }
+            image = loaded
         }
     }
 }

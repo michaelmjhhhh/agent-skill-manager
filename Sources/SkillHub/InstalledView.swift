@@ -145,18 +145,19 @@ struct DocumentView: View {
                 ScrollView {
                     if raw || !["md", "markdown"].contains(url.pathExtension.lowercased()) {
                         Text(text).font(.system(size: 12, design: .monospaced)).frame(maxWidth: .infinity, alignment: .leading).padding(24).textSelection(.enabled)
-                    } else { MarkdownDocument(text: text, baseURL: url.deletingLastPathComponent()).padding(26) }
+                    } else { MarkdownDocument(text: text, baseURL: url.deletingLastPathComponent()).equatable().padding(26) }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }.task(id: url) {
-            let result = await Task.detached { () -> Result<String, Error> in
-                Result {
-                    let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-                    guard size <= 2_000_000 else { throw NSError(domain: "Preview", code: 1, userInfo: [NSLocalizedDescriptionKey: "Files over 2 MB can be opened in Finder."]) }
-                    return try String(contentsOf: url, encoding: .utf8)
-                }
-            }.value
-            switch result { case .success(let value): text = value; case .failure(let issue): error = issue.localizedDescription }
+            error = nil
+            do {
+                let value = try await DocumentLoader.shared.load(url)
+                guard !Task.isCancelled else { return }
+                text = value
+            } catch {
+                guard !Task.isCancelled else { return }
+                self.error = error.localizedDescription
+            }
         }
     }
 }
