@@ -1,24 +1,72 @@
 # Agent Skill Manager
 
-A native macOS app for browsing installed agent skills and managing a local skill collection. Built with SwiftUI and AppKit, with MarkdownUI for native Markdown previews.
+A macOS app for browsing installed agent skills and saving a collection of skill links and install commands. Built with SwiftUI, AppKit, and MarkdownUI.
 
-The app reads `~/.agents/skills` and `~/.claude/skills`. Collection entries are stored separately from installed skills. No account is required, and the app does not make background network requests.
+Reads `~/.agents/skills` and `~/.claude/skills` by default. You can change both paths in Settings. No account required.
 
-## Download
+## Install
 
-Download the universal `.dmg` from [Releases](https://github.com/michaelmjhhhh/agent-skill-manager/releases), open it, and drag the app into Applications. Supports Apple silicon and Intel on macOS 13+.
+Download the universal `.dmg` from [Releases](https://github.com/michaelmjhhhh/agent-skill-manager/releases), open it, and drag Agent Skill Manager into Applications. Requires macOS 13 or later on Apple silicon or Intel.
 
-The app is ad-hoc signed but **not notarized by Apple**. Only open downloads you trust. After attempting to launch, prefer **System Settings → Privacy & Security → Open Anyway**. If needed, this one-line command removes quarantine from this app only:
+The app is ad-hoc signed, but Apple has not notarized it. If macOS blocks it, try opening it once, then go to System Settings > Privacy & Security > Open Anyway.
+
+For a download you trust, you can also remove quarantine from this app:
 
 ```sh
 xattr -dr com.apple.quarantine "/Applications/Agent Skill Manager.app"
 ```
 
-This removes the downloaded-app quarantine protection for this app; it does not notarize the app or disable Gatekeeper globally. Do not run it on untrusted downloads. Release checksums can be verified with `shasum -a 256 -c Agent-Skill-Manager-X.Y.Z-universal.dmg.sha256` alongside the downloaded DMG.
+This removes the app's downloaded-file protection. It does not notarize the app or disable Gatekeeper for other apps.
 
-## Run
+Each release includes a SHA-256 checksum. To check your download, run this in the folder containing both files, replacing `X.Y.Z` with the release version:
 
-Requires macOS 13+ and Xcode Command Line Tools with Swift 5.9+.
+```sh
+shasum -a 256 -c Agent-Skill-Manager-X.Y.Z-universal.dmg.sha256
+```
+
+## What you can do
+
+- Search installed skills, browse their files, and preview Markdown or source code.
+- Save skill links, descriptions, categories, favorites, and install commands in a separate collection.
+- Search, filter, and sort the collection. Import or export it as JSON.
+- Choose a working folder and run a saved command in Terminal, iTerm2, or Ghostty 1.3 or later. Other terminals use "Copy command & open" so you can run it yourself.
+- Switch between system, light, and dark appearance.
+
+Press ⌘R to refresh or ⌘N to add a collection entry. The app also refreshes installed skills when it becomes active.
+
+## Commands and permissions
+
+Review install commands before running them. They run with your user permissions in a new terminal session, only after confirmation. The app never retries commands or tracks whether installation finished. Refresh the library afterward.
+
+macOS may ask for Automation permission. If you deny it, you can enable it in System Settings > Privacy & Security > Automation. Ghostty also needs `macos-applescript` enabled, which is its default.
+
+"Copy command & open" copies the command and opens your terminal. It does not paste or run anything.
+
+## Your data
+
+The app only reads installed skill files. Removing a collection entry does not uninstall the skill.
+
+Collection entries live in:
+
+```text
+~/Library/Application Support/SkillHub/collection.json
+```
+
+The app keeps the `SkillHub` directory name for compatibility. It writes changes atomically and refuses to overwrite invalid collection JSON. Imports merge entries by UUID and keep existing entries. Export your collection to back it up.
+
+Preferences use macOS UserDefaults. The app does not sync data or make background network requests.
+
+## Limits
+
+- No automatic repository downloads, uninstalling, or installation detection for collection entries.
+- Markdown previews block remote images and do not support embedded HTML, executable diagrams, syntax highlighting, or in-document anchors. Relative file links open in Finder.
+- Local image previews have a 10 MB limit. Text previews have a 2 MB limit.
+- File trees stop at 12 levels and 500 entries per directory. They skip hidden files, `node_modules`, and Python caches.
+- Metadata parsing supports common name and description fields, not arbitrary YAML.
+
+## Build from source
+
+Requires macOS 13 or later and Xcode Command Line Tools with Swift 5.9 or later.
 
 ```sh
 git clone https://github.com/michaelmjhhhh/agent-skill-manager.git
@@ -27,65 +75,25 @@ cd agent-skill-manager
 open "dist/Agent Skill Manager.app"
 ```
 
-The first build downloads Swift package dependencies. `Package.resolved` records their versions.
+The first build downloads dependencies pinned in `Package.resolved`. The script builds an ad-hoc signed app for your Mac's architecture.
 
-Drag `dist/Agent Skill Manager.app` into Applications if desired. The build script creates an ad-hoc signed app for your current architecture. Developer ID signing and notarization are not configured; downloaded builds require explicit user approval as described above.
+Use `swift run` during development and `swift test` to run tests. You can also open `Package.swift` in Xcode.
 
-For development: `swift run`. Tests: `swift test`. Open `Package.swift` in Xcode to develop there.
+To build a universal DMG for both Apple silicon and Intel, install full Xcode and run:
 
-## CI and releases
+```sh
+VERSION=0.2.0 ./scripts/build-dmg.sh
+```
 
-Pull requests and pushes to `main` run tests and build a universal DMG on macOS. CI uploads the DMG and SHA-256 checksum as workflow artifacts. Publishing uses a separate job with release-write permission only after tests and packaging succeed.
+## Releases
 
-To publish a release from a reviewed commit on `main`:
+Pull requests and pushes to `main` run tests and build a universal DMG. GitHub Actions saves the DMG and checksum as workflow artifacts.
+
+To publish a reviewed commit on `main`, tag it with a new version:
 
 ```sh
 git tag v0.2.0
 git push origin v0.2.0
 ```
 
-Tags must use `vX.Y.Z`; that version is embedded in the app and DMG name. The release workflow publishes a GitHub Release with installation instructions, DMG, and checksum. No signing secrets are required. Use a new version tag for each release.
-
-Build the same universal DMG locally with `VERSION=0.2.0 ./scripts/build-dmg.sh` (requires full Xcode for SwiftPM universal builds). The image includes an Applications shortcut for drag-and-drop installation.
-
-## Features
-
-- Browse `~/.agents/skills` and `~/.claude/skills`, with configurable locations in Settings.
-- Find installed skills by name or description, expand consistently aligned nested file trees, read Markdown or source, copy content, and reveal documents in Finder.
-- Native Markdown supports tables, nested/ordered/task lists, blockquotes, inline formatting, local images, and fenced code with copy buttons. Relative file links reveal their targets in Finder rather than executing them.
-- Supports standalone Markdown files, skill bundles, nested subskills, and symlinked directories; prevents recursive symlink loops.
-- Manually curate a separate collection with name, source URL, description, category, installation command, and favorite flag.
-- Search, filter by category/favorites, sort by name or newest, edit, remove, and import/export JSON.
-- Organized collection cards with category badges, compact source links, two-line command previews, and a separate action row. Empty or placeholder commands such as `N/A` disable installation.
-- Minimal Settings page and consistent collection toolbar controls. All app scroll views use native auto-fading overlay scrollbars instead of persistent tracks, without changing your system preferences.
-- Save an installed skill to your collection using its bookmark button, then add its source and command manually.
-- Choose an installed terminal `.app` from Applications in Settings. Its name, icon, and path are shown, and the selection is saved. Existing Terminal/iTerm preferences remain supported.
-- Run a saved command after confirmation using native AppleScript integration with Terminal, iTerm2, or Ghostty 1.3+. Each execution lets you choose the session's working directory before opening a new terminal session. No temporary installation script is created. Other terminals use **Copy command & open** for manual execution.
-- System, light, and dark appearance; collapsible sidebar; rounded panels and controls.
-- Refresh with ⌘R. Skills also refresh when the app becomes active. ⌘N adds a bookmark while viewing Collection.
-
-## Data and safety
-
-Installed skills are read-only. Removing a collection entry does not uninstall a skill.
-
-Collection data is stored at:
-
-```
-~/Library/Application Support/SkillHub/collection.json
-```
-
-The internal `SkillHub` data directory and bundle identifier are retained for compatibility with existing installations.
-
-Changes are written atomically. Invalid existing collection JSON is not overwritten. Import merges by UUID, keeping existing entries. Export periodically for backups. Preferences are stored with macOS UserDefaults.
-
-Direct installation uses the selected terminal's AppleScript API and runs with your user permissions. The command is passed as an argument, not inserted into AppleScript source. macOS may request Automation permission; if denied, enable it in **System Settings > Privacy & Security > Automation**, or use **Copy command & open**. Ghostty also needs its `macos-applescript` setting enabled (the default).
-
-**Copy command & open** only copies the command and opens the chosen app; it does not paste or execute anything. Inspect commands and trust their source before running them. Commands are never automatically retried. Installation completion is not tracked; refresh the library afterward.
-
-## Limitations
-
-Markdown uses MarkdownUI's GitHub-flavored parser and native SwiftUI rendering. Embedded HTML, executable diagrams, syntax highlighting, and in-document anchor navigation are not provided. Remote images stay blocked; local image previews are limited to 10 MB. YAML metadata parsing covers common scalar and multiline name/description fields, not arbitrary YAML. Text previews are limited to 2 MB; file trees are bounded to 12 levels and 500 entries per directory, excluding hidden files, node_modules, and Python caches. There is no automatic repository fetching, installation detection for bookmarks, uninstalling, or cloud sync.
-
-## Verification
-
-Twenty-one automated tests cover metadata, nested bundles, standalone Markdown, symlink traversal/cycles, missing directories, collection persistence/corruption, stable tree indentation, frontmatter handling, rich Markdown parsing, native Markdown layout, compact source labels, placeholder commands, consistent card layout in light/dark modes, nested overlay scrollbar configuration, collection toolbar sizing, terminal selection compatibility, application bundle validation, terminal driver selection, command argument isolation, and AppleScript compilation against installed Terminal and Ghostty dictionaries. Debug and release builds verified locally. The app was launched successfully; full-window screenshot capture was unavailable in the build session. Real installation commands were deliberately not executed during testing.
+Tags must use `vX.Y.Z`. The workflow puts that version in the app and DMG filename, then publishes a GitHub Release after tests and packaging pass. Releases include the DMG, checksum, and install instructions. No signing secrets are configured.
