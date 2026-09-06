@@ -9,6 +9,8 @@ import AppKit
     @Published var error: String?
     @Published var scanning = false
     private var collectionLoaded = false
+    private var lastRefresh: Date?
+    private var lastPaths: [String] = []
     let storage = CollectionStorage.standard
 
     init() {
@@ -16,23 +18,29 @@ import AppKit
         catch { self.error = "Could not load collection. Your file has not been changed.\n\(error.localizedDescription)" }
     }
 
-    func refresh() async {
+    func refresh(automatic: Bool = false) async {
         guard !scanning else { return }
-        scanning = true
         let a = UserDefaults.standard.string(forKey: "agentsPath") ?? "~/.agents/skills"
         let c = UserDefaults.standard.string(forKey: "claudePath") ?? "~/.claude/skills"
-        let result = await Task.detached {
-            (Result { try SkillScanner.scan(path: a) }, Result { try SkillScanner.scan(path: c) })
+        if automatic, lastPaths == [a, c], let lastRefresh, Date().timeIntervalSince(lastRefresh) < 3 { return }
+        scanning = true
+        let result = await Task.detached(priority: .userInitiated) {
+            let session = SkillScanner.Session()
+            return (Result { try SkillScanner.scan(path: a, session: session) },
+                    Result { try SkillScanner.scan(path: c, session: session) })
         }.value
-        scanMessages = [:]
+        var messages: [String: String] = [:]
         switch result.0 {
-        case .success(let items): agents = items
-        case .failure(let error): agents = []; scanMessages["agents"] = "\(a): \(error.localizedDescription)"
+        case .success(let items): if agents != items { agents = items }
+        case .failure(let error): if !agents.isEmpty { agents = [] }; messages["agents"] = "\(a): \(error.localizedDescription)"
         }
         switch result.1 {
-        case .success(let items): claude = items
-        case .failure(let error): claude = []; scanMessages["claude"] = "\(c): \(error.localizedDescription)"
+        case .success(let items): if claude != items { claude = items }
+        case .failure(let error): if !claude.isEmpty { claude = [] }; messages["claude"] = "\(c): \(error.localizedDescription)"
         }
+        if scanMessages != messages { scanMessages = messages }
+        lastPaths = [a, c]
+        lastRefresh = Date()
         scanning = false
     }
 

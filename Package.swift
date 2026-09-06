@@ -11,7 +11,7 @@ let package = Package(
     targets: [
         .executableTarget(name: "SkillHub", dependencies: [
             .product(name: "MarkdownUI", package: "swift-markdown-ui")
-        ]),
+        ], resources: [.process("Resources")]),
         .testTarget(name: "SkillHubTests", dependencies: ["SkillHub"])
     ]
 )

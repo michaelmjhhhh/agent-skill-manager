@@ -32,7 +32,9 @@ shasum -a 256 -c Agent-Skill-Manager-X.Y.Z-universal.dmg.sha256
 - Choose a working folder and run a saved command in Terminal, iTerm2, or Ghostty 1.3 or later. Other terminals use "Copy command & open" so you can run it yourself.
 - Switch between system, light, and dark appearance.
 
-Press ⌘R to refresh or ⌘N to add a collection entry. The app also refreshes installed skills when it becomes active.
+Press ⌘R to refresh or ⌘N to add a collection entry. The app also refreshes installed skills when it becomes active, skipping repeated automatic scans within three seconds. Manual refresh always scans again.
+
+A refresh scans shared skill folders once, even when both sources link to them. Text previews use an 8 MB cache with at most 32 entries and check file attributes before reusing a cached document.
 
 ## Commands and permissions
 

@@ -6,7 +6,7 @@ struct FileNode: Identifiable, Hashable {
     let children: [FileNode]?
 }
 
-struct InstalledSkill: Identifiable {
+struct InstalledSkill: Identifiable, Equatable {
     var id: String { folder.path }
     let folder: URL
     let document: URL?
@@ -45,16 +45,36 @@ struct SkillScanner {
         return (fields["name", default: ""], fields["description", default: ""].trimmingCharacters(in: .whitespaces))
     }
 
-    static func scan(path: String) throws -> [InstalledSkill] {
+    /// Cache only within one refresh, so explicit refresh always sees filesystem changes.
+    final class Session {
+        var trees: [String: [FileNode]] = [:]
+        var metadata: [String: (name: String, summary: String)] = [:]
+    }
+
+    static func scan(path: String, session: Session = Session()) throws -> [InstalledSkill] {
         let root = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
         return try FileManager.default.contentsOfDirectory(at: root.resolvingSymlinksInPath(), includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]).compactMap { url in
             let isDirectory = (try? url.resolvingSymlinksInPath().resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
             guard isDirectory || url.pathExtension.lowercased() == "md" else { return nil }
-            let files = isDirectory ? tree(url, ancestors: [], depth: 0) : []
+            let canonical = url.resolvingSymlinksInPath().path
+            let files: [FileNode]
+            if isDirectory {
+                if let cached = session.trees[canonical] { files = cached }
+                else {
+                    files = tree(url, ancestors: [], depth: 0)
+                    session.trees[canonical] = files
+                }
+            } else { files = [] }
             let main = isDirectory ? files.first(where: { $0.url.lastPathComponent.lowercased() == "skill.md" })?.url : url
             let fallback = files.first(where: { $0.url.lastPathComponent.lowercased() == "readme.md" })?.url
             let document = main ?? fallback
-            let meta = metadata(document.flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? "")
+            let metadataKey = document?.resolvingSymlinksInPath().path ?? canonical
+            let meta: (name: String, summary: String)
+            if let cached = session.metadata[metadataKey] { meta = cached }
+            else {
+                meta = metadata(document.flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? "")
+                session.metadata[metadataKey] = meta
+            }
             return InstalledSkill(folder: url, document: document, name: meta.name.isEmpty ? (isDirectory ? url.lastPathComponent : url.deletingPathExtension().lastPathComponent) : meta.name, summary: meta.summary, files: files)
         }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
