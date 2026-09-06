@@ -1,0 +1,60 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Expected vX.Y.Z tag'; exit 1; }
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+      - run: swift test
+      - run: ./scripts/build-dmg.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-dmg
+          path: |
+            dist/*.dmg
+            dist/*.sha256
+          if-no-files-found: error
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-dmg
+          path: dist
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cat > notes.md <<'NOTES'
+          Universal macOS app (Apple silicon and Intel), macOS 13+.
+
+          Open the DMG and drag Agent Skill Manager into Applications.
+          This app is ad-hoc signed, **not Apple-notarized**. Only open it if you trust this repository and release. Prefer System Settings > Privacy & Security > Open Anyway after attempting to launch.
+
+          If needed, remove quarantine from this app only after copying it into Applications:
+          ```sh
+          xattr -dr com.apple.quarantine "/Applications/Agent Skill Manager.app"
+          ```
+          This removes the downloaded-app quarantine protection for this app; it does not notarize it or disable Gatekeeper system-wide.
+          SHA-256 checksums are included alongside the DMG.
+          NOTES
+          gh release create "$TAG" dist/* --verify-tag --title "Agent Skill Manager $TAG" --notes-file notes.md --generate-notes

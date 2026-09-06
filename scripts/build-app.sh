@@ -1,11 +1,23 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-swift build -c release
-BIN_DIR="$(swift build -c release --show-bin-path)"
+VERSION="${VERSION:-0.1.0}"
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "VERSION must be X.Y.Z" >&2; exit 1; }
+# Release builds support both Apple silicon and Intel.
+ARCH_ARGS=()
+if [[ "${UNIVERSAL:-0}" == 1 ]]; then ARCH_ARGS=(--arch arm64 --arch x86_64); fi
+swift build -c release "${ARCH_ARGS[@]}"
+BIN_DIR="$(swift build -c release "${ARCH_ARGS[@]}" --show-bin-path)"
 APP="$PWD/dist/Agent Skill Manager.app"
+rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/SkillHub" "$APP/Contents/MacOS/SkillHub"
+
+# SwiftPM resource bundles must accompany the packaged executable.
+for bundle in "$BIN_DIR"/*.bundle; do
+  [[ -d "$bundle" ]] || continue
+  cp -R "$bundle" "$APP/Contents/Resources/"
+done
 
 # Build the native macOS icon from the checked-in artwork.
 ICONSET="$APP/Contents/Resources/AppIcon.iconset"
@@ -35,5 +47,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>NSAppleEventsUsageDescription</key><string>Agent Skill Manager sends installation commands you confirm to a new session in your selected terminal.</string>
 </dict></plist>
 PLIST
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP/Contents/Info.plist"
 codesign --force --deep --sign - "$APP"
+codesign --verify --deep --strict "$APP"
 printf '\nBuilt: %s\n' "$APP"

@@ -4,22 +4,49 @@ A native macOS app for browsing installed agent skills and managing a local skil
 
 The app reads `~/.agents/skills` and `~/.claude/skills`. Collection entries are stored separately from installed skills. No account is required, and the app does not make background network requests.
 
+## Download
+
+Download the universal `.dmg` from [Releases](https://github.com/michaelmjhhhh/agent-skill-manager/releases), open it, and drag the app into Applications. Supports Apple silicon and Intel on macOS 13+.
+
+The app is ad-hoc signed but **not notarized by Apple**. Only open downloads you trust. After attempting to launch, prefer **System Settings → Privacy & Security → Open Anyway**. If needed, this one-line command removes quarantine from this app only:
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/Agent Skill Manager.app"
+```
+
+This removes the downloaded-app quarantine protection for this app; it does not notarize the app or disable Gatekeeper globally. Do not run it on untrusted downloads. Release checksums can be verified with `shasum -a 256 -c Agent-Skill-Manager-X.Y.Z-universal.dmg.sha256` alongside the downloaded DMG.
+
 ## Run
 
 Requires macOS 13+ and Xcode Command Line Tools with Swift 5.9+.
 
 ```sh
-git clone https://github.com/michaelmjhhhh/agent-skill-hub.git
-cd agent-skill-hub
+git clone https://github.com/michaelmjhhhh/agent-skill-manager.git
+cd agent-skill-manager
 ./scripts/build-app.sh
 open "dist/Agent Skill Manager.app"
 ```
 
 The first build downloads Swift package dependencies. `Package.resolved` records their versions.
 
-Drag `dist/Agent Skill Manager.app` into Applications if desired. The build script creates an ad-hoc signed app for your current architecture. Distribution to other Macs would require Developer ID signing and notarization.
+Drag `dist/Agent Skill Manager.app` into Applications if desired. The build script creates an ad-hoc signed app for your current architecture. Developer ID signing and notarization are not configured; downloaded builds require explicit user approval as described above.
 
 For development: `swift run`. Tests: `swift test`. Open `Package.swift` in Xcode to develop there.
+
+## CI and releases
+
+Pull requests and pushes to `main` run tests and build a universal DMG on macOS. CI uploads the DMG and SHA-256 checksum as workflow artifacts. Publishing uses a separate job with release-write permission only after tests and packaging succeed.
+
+To publish a release from a reviewed commit on `main`:
+
+```sh
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+Tags must use `vX.Y.Z`; that version is embedded in the app and DMG name. The release workflow publishes a GitHub Release with installation instructions, DMG, and checksum. No signing secrets are required. Use a new version tag for each release.
+
+Build the same universal DMG locally with `VERSION=0.2.0 ./scripts/build-dmg.sh` (requires full Xcode for SwiftPM universal builds). The image includes an Applications shortcut for drag-and-drop installation.
 
 ## Features
 
