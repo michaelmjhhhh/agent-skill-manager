@@ -44,7 +44,11 @@ macOS may ask for Automation permission. If you deny it, you can enable it in Sy
 
 ## Your data
 
-The app only reads installed skill files. Removing a collection entry does not uninstall the skill.
+Use "Remove" in the installed skill view to move the selected skill's whole folder to Trash. The confirmation shows the path. Selecting a nested document still removes the whole skill, not just that document. A standalone Markdown skill removes only that file. For a symbolic link, only the link moves to Trash, not its target.
+
+You can restore removed entries from Trash. Removing an installed skill keeps its collection entry. Removing a collection entry does not uninstall the skill.
+
+Removal checks that the entry is a direct child of the configured skills folder and that its filesystem identity has not changed since confirmation. It refuses the source root, home directory, and outside paths. There is no permanent-delete fallback. A separate process changing filesystem paths during the final Trash operation remains a race risk.
 
 Collection entries live in:
 
@@ -58,7 +62,7 @@ Preferences use macOS UserDefaults. The app does not sync data or make backgroun
 
 ## Limits
 
-- No automatic repository downloads, uninstalling, or installation detection for collection entries.
+- No automatic repository downloads or installation detection for collection entries. Removing a skill does not undo other files or settings created by its installer.
 - Markdown previews block remote images and do not support embedded HTML, executable diagrams, syntax highlighting, or in-document anchors. Relative file links open in Finder.
 - Local image previews have a 10 MB limit. Text previews have a 2 MB limit.
 - File trees stop at 12 levels and 500 entries per directory. They skip hidden files, `node_modules`, and Python caches.
