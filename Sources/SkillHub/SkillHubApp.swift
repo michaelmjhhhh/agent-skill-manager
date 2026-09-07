@@ -4,7 +4,6 @@ import AppKit
 let hubTeal = Color(red: 0.05, green: 0.52, blue: 0.48)
 
 @main struct SkillHubApp: App {
-    @NSApplicationDelegateAdaptor(HubAppDelegate.self) private var appDelegate
     @StateObject private var store = HubStore()
     @AppStorage("appearance") private var appearance = "System"
     var body: some Scene {
@@ -81,7 +80,11 @@ struct HubView: View {
             }
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .task { await store.refresh(automatic: true) }
+        .task {
+            async let collection: Void = store.loadCollection()
+            await store.refresh(automatic: true)
+            await collection
+        }
         .onChange(of: phase) { value in if value == .active { Task { await store.refresh(automatic: true) } } }
         .alert("Error", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
             Button("OK") { store.error = nil }

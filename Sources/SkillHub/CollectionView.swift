@@ -35,7 +35,9 @@ struct CollectionView: View {
             CollectionToolbar(search: $search, category: $category, sort: $sort, favorites: $favorites,
                               categories: categories, importCollection: store.importCollection,
                               exportCollection: store.exportCollection)
-            if items.isEmpty {
+            if store.collectionLoading {
+                ProgressView("Loading collection…").frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if items.isEmpty {
                 VStack {
                     EmptyState(icon: "bookmark", title: store.collection.isEmpty ? "No saved skills" : "No matching skills", detail: store.collection.isEmpty ? "Add a skill to your collection. Saving an entry does not install it." : "Try another search or category.")
                     if store.collection.isEmpty { Button("Add your first skill") { draft = SavedSkill() }.buttonStyle(.borderedProminent).padding(.bottom, 80) }
@@ -48,6 +50,7 @@ struct CollectionView: View {
                 }
             }
         }.padding(28)
+        .background(ScrollPolicyUpdate())
         .sheet(item: $draft) { CollectionEditor(initial: $0) }
         .alert("Run installation command?", isPresented: Binding(get: { installing != nil }, set: { if !$0 { installing = nil } })) {
             Button("Cancel", role: .cancel) { installing = nil }
@@ -141,6 +144,7 @@ struct CollectionEditor: View {
                 }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction).disabled(skill.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !validURL)
             }
         }.padding(30).frame(width: 500)
+            .background(ScrollPolicyUpdate())
     }
     func field(_ title: String, placeholder: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 8) {

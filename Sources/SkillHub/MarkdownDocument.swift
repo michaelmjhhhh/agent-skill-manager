@@ -4,10 +4,19 @@ import MarkdownUI
 
 /// GitHub-flavored Markdown rendered as native SwiftUI views, not HTML/WebKit.
 struct MarkdownDocument: View, Equatable {
-    let text: String
+    let content: MarkdownContent
     let baseURL: URL
 
-    static func bodyText(_ source: String) -> String {
+    init(content: MarkdownContent, baseURL: URL) {
+        self.content = content
+        self.baseURL = baseURL
+    }
+
+    init(text: String, baseURL: URL) {
+        self.init(content: MarkdownContent(Self.bodyText(text)), baseURL: baseURL)
+    }
+
+    nonisolated static func bodyText(_ source: String) -> String {
         var normalized = source.replacingOccurrences(of: "\r\n", with: "\n")
         if normalized.hasPrefix("\u{FEFF}") { normalized.removeFirst() }
         let lines = normalized.components(separatedBy: "\n")
@@ -19,8 +28,9 @@ struct MarkdownDocument: View, Equatable {
     }
 
     var body: some View {
-        Markdown(Self.bodyText(text), baseURL: baseURL, imageBaseURL: baseURL)
+        Markdown(content, baseURL: baseURL, imageBaseURL: baseURL)
             .markdownTheme(.skillHub)
+            .background(ScrollPolicyUpdate())
             .markdownImageProvider(LocalMarkdownImages())
             .markdownInlineImageProvider(LocalInlineImages())
             .textSelection(.enabled)
@@ -120,13 +130,19 @@ private struct LocalMarkdownImage: View {
             }
         }.task(id: url) {
             let target = url
-            let loaded = await Task.detached(priority: .userInitiated) { () -> NSImage? in
-                target.flatMap { LocalImageLoader.load($0) }
+            let loaded = await Task.detached(priority: .userInitiated) {
+                LocalImageTransfer(image: target.flatMap { LocalImageLoader.load($0) })
             }.value
             guard !Task.isCancelled else { return }
-            image = loaded
+            image = loaded.image
         }
     }
+}
+
+// NSImage's Sendable annotation starts at macOS 14. This single-owner transfer
+// also supports macOS 13: the worker stops using the image before the UI receives it.
+private struct LocalImageTransfer: @unchecked Sendable {
+    let image: NSImage?
 }
 
 private enum LocalImageLoader {
