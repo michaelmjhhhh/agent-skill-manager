@@ -4,6 +4,10 @@ User-facing changes are listed here. Unreleased changes have not shipped in a ta
 
 ## [Unreleased]
 
+### Fixed
+
+- Separate the installed-skill preview card from the split divider and clip its content and border to the rounded corners.
+
 ## [0.0.2]
 
 Released 2026-09-07.

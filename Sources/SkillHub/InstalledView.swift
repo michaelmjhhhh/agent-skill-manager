@@ -90,7 +90,9 @@ struct InstalledView: View {
                     } else { EmptyState(icon: "doc.text.magnifyingglass", title: "Select a skill", detail: "Select a skill to read its instructions. Expand its file tree to view references and subskills.") }
                 }.frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 16))
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.07)))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.primary.opacity(0.07)))
+                    .padding(.leading, 12)
             }
         }.padding(26)
         .background(ScrollPolicyUpdate())
