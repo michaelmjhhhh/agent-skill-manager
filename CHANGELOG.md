@@ -4,6 +4,10 @@ User-facing changes are listed here. Unreleased changes have not shipped in a ta
 
 ## [Unreleased]
 
+## [0.0.2]
+
+Released 2026-09-07.
+
 ### Changed
 
 - Scan shared skill folders once per refresh, even when Agent and Claude entries link to the same folder.
@@ -58,6 +62,7 @@ Released 2026-09-06.
 
 - Replaced the original Xcode 15.4 DMG with an Xcode 26.5 rebuild on 2026-09-06. Updated its checksum. The version tag and app source stayed unchanged.
 
-[Unreleased]: https://github.com/michaelmjhhhh/agent-skill-manager/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/michaelmjhhhh/agent-skill-manager/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/michaelmjhhhh/agent-skill-manager/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/michaelmjhhhh/agent-skill-manager/compare/v0.0.0...v0.0.1
 [0.0.0]: https://github.com/michaelmjhhhh/agent-skill-manager/releases/tag/v0.0.0
