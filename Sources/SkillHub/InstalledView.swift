@@ -93,6 +93,7 @@ struct InstalledView: View {
                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.07)))
             }
         }.padding(26)
+        .background(ScrollPolicyUpdate())
         .onAppear { selectFirst() }
         .onChange(of: skills.map(\.id)) { _ in selectFirst() }
         .sheet(item: $draft) { item in CollectionEditor(initial: item) }
@@ -128,7 +129,8 @@ struct InstalledView: View {
 
 struct DocumentView: View {
     let url: URL
-    @State private var text = ""
+    @State private var snapshot: DocumentSnapshot?
+    private var text: String { snapshot?.text ?? "" }
     @State private var error: String?
     @State private var raw = false
     var body: some View {
@@ -141,19 +143,31 @@ struct DocumentView: View {
             }.padding(14)
             Divider()
             if let error { EmptyState(icon: "doc.questionmark", title: "Preview unavailable", detail: error) }
-            else {
+            else if snapshot == nil {
+                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
                 ScrollView {
-                    if raw || !["md", "markdown"].contains(url.pathExtension.lowercased()) {
-                        Text(text).font(.system(size: 12, design: .monospaced)).frame(maxWidth: .infinity, alignment: .leading).padding(24).textSelection(.enabled)
-                    } else { MarkdownDocument(text: text, baseURL: url.deletingLastPathComponent()).equatable().padding(26) }
+                    if !raw, let markdown = snapshot?.markdown {
+                        MarkdownDocument(content: markdown, baseURL: url.deletingLastPathComponent()).equatable().padding(26)
+                    } else {
+                        VStack(alignment: .leading, spacing: 12) {
+                            if snapshot?.sourceOnly == true {
+                                Text("Large Markdown document: showing source to keep the interface responsive. Open in Finder for another viewer.")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Text(text).font(.system(size: 12, design: .monospaced)).textSelection(.enabled)
+                        }.frame(maxWidth: .infinity, alignment: .leading).padding(24)
+                    }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-        }.task(id: url) {
+        }.background(ScrollPolicyUpdate())
+        .task(id: url) {
             error = nil
+            snapshot = nil
             do {
-                let value = try await DocumentLoader.shared.load(url)
+                let value = try await DocumentLoader.shared.loadPreview(url)
                 guard !Task.isCancelled else { return }
-                text = value
+                snapshot = value
             } catch {
                 guard !Task.isCancelled else { return }
                 self.error = error.localizedDescription

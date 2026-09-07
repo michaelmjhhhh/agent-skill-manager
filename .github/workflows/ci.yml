@@ -22,7 +22,9 @@ jobs:
           test "$(xcodebuild -version)" = $'Xcode 26.5\nBuild version 17F42'
           xcrun --show-sdk-version
       - name: Test
-        run: swift test
+        run: |
+          python3 scripts/test_release_notes.py
+          swift test
       - name: Build and verify universal DMG
         run: ./scripts/build-dmg.sh
       - uses: actions/upload-artifact@v4

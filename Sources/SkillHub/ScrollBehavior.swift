@@ -1,8 +1,12 @@
 import AppKit
+import SwiftUI
 
-/// App-local policy: use native transient overlay scrollers, regardless of the
-/// system's legacy "Always" preference. AppKit owns their scrolling/fade behavior.
-enum ScrollBehavior {
+/// Configure transient scrollers after content updates, never on every AppKit event.
+@MainActor enum ScrollBehavior {
+    private static let pending = NSHashTable<NSWindow>.weakObjects()
+    private static var scheduled = false
+    private(set) static var passCount = 0
+
     static func apply(to view: NSView) {
         if let scroll = view as? NSScrollView {
             if scroll.scrollerStyle != .overlay { scroll.scrollerStyle = .overlay }
@@ -10,14 +14,37 @@ enum ScrollBehavior {
         }
         for child in view.subviews { apply(to: child) }
     }
+
+    static func schedule(in window: NSWindow?) {
+        guard let window else { return }
+        pending.add(window)
+        guard !scheduled else { return }
+        scheduled = true
+        DispatchQueue.main.async { flush() }
+    }
+
+    static func flush() {
+        let windows = pending.allObjects
+        pending.removeAllObjects()
+        scheduled = false
+        for window in windows {
+            if let content = window.contentView {
+                apply(to: content)
+                passCount += 1
+            }
+        }
+    }
 }
 
-final class HubAppDelegate: NSObject, NSApplicationDelegate {
-    func applicationDidUpdate(_ notification: Notification) {
-        // Covers dynamically inserted Markdown tables/code blocks, sheets and
-        // TextEditors as well as the main panes. No global defaults or swizzling.
-        for window in NSApp.windows {
-            if let content = window.contentView { ScrollBehavior.apply(to: content) }
+struct ScrollPolicyUpdate: NSViewRepresentable {
+    final class Anchor: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            ScrollBehavior.schedule(in: window)
         }
+    }
+    func makeNSView(context: Context) -> Anchor { Anchor() }
+    func updateNSView(_ nsView: Anchor, context: Context) {
+        ScrollBehavior.schedule(in: nsView.window)
     }
 }

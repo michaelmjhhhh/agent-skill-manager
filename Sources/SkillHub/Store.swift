@@ -8,14 +8,32 @@ import AppKit
     @Published var scanMessages: [String: String] = [:]
     @Published var error: String?
     @Published var scanning = false
+    @Published private(set) var collectionLoading = true
     private var collectionLoaded = false
+    private var collectionLoadTask: Task<[SavedSkill], Error>?
     private var lastRefresh: Date?
     private var lastPaths: [String] = []
-    let storage = CollectionStorage.standard
+    let storage: CollectionStorage
 
-    init() {
-        do { collection = try storage.load(); collectionLoaded = true }
-        catch { self.error = "Could not load collection. Your file has not been changed.\n\(error.localizedDescription)" }
+    init(storage: CollectionStorage = .standard) { self.storage = storage }
+
+    func loadCollection() async {
+        guard !collectionLoaded else { return }
+        let task: Task<[SavedSkill], Error>
+        if let existing = collectionLoadTask { task = existing }
+        else {
+            let storage = self.storage
+            task = Task.detached(priority: .userInitiated) { try storage.load() }
+            collectionLoadTask = task
+        }
+        do {
+            let items = try await task.value
+            if !collectionLoaded { collection = items; collectionLoaded = true }
+        } catch {
+            self.error = "Could not load collection. Your file has not been changed.\n\(error.localizedDescription)"
+        }
+        collectionLoadTask = nil
+        collectionLoading = false
     }
 
     func refresh(automatic: Bool = false) async {
@@ -52,11 +70,16 @@ import AppKit
     }
     func delete(_ skill: SavedSkill) { _ = persist(collection.filter { $0.id != skill.id }) }
     private func persist(_ items: [SavedSkill]) -> Bool {
-        guard collectionLoaded else { error = "Collection is unavailable. Repair or restore \(storage.file.path), then reopen the app."; return false }
+        guard collectionLoaded else {
+            error = collectionLoading ? "The collection is still loading. Try again shortly."
+                : "Collection is unavailable. Repair or restore \(storage.file.path), then reopen the app."
+            return false
+        }
         do { try storage.save(items); collection = items; return true }
         catch { self.error = "Could not save collection: \(error.localizedDescription)"; return false }
     }
     func exportCollection() {
+        guard collectionLoaded else { error = "Load the collection before exporting it."; return }
         let panel = NSSavePanel()
         panel.nameFieldStringValue = "skill-collection.json"
         guard panel.runModal() == .OK, let url = panel.url else { return }

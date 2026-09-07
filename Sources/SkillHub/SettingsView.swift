@@ -13,6 +13,7 @@ struct SettingsPage: View {
                 .padding(.vertical, 12)
         }
         .scrollIndicators(.automatic)
+        .background(ScrollPolicyUpdate())
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

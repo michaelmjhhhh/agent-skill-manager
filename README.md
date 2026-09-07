@@ -34,7 +34,7 @@ shasum -a 256 -c Agent-Skill-Manager-X.Y.Z-universal.dmg.sha256
 
 Press ⌘R to refresh or ⌘N to add a collection entry. The app also refreshes installed skills when it becomes active, skipping repeated automatic scans within three seconds. Manual refresh always scans again.
 
-A refresh scans shared skill folders once, even when both sources link to them. Text previews use an 8 MB cache with at most 32 entries and check file attributes before reusing a cached document.
+A refresh scans shared skill folders once, even when both sources link to them. Previews cache text and parsed Markdown for up to 32 documents, with an 8 MB source-text budget. Parsed Markdown uses additional memory. The app checks file attributes before reusing a document, and reads the collection after opening the window.
 
 ## Commands and permissions
 
@@ -66,7 +66,7 @@ Preferences use macOS UserDefaults. The app does not sync data or make backgroun
 
 - No automatic repository downloads or installation detection for collection entries. Removing a skill does not undo other files or settings created by its installer.
 - Markdown previews block remote images and do not support embedded HTML, executable diagrams, syntax highlighting, or in-document anchors. Relative file links open in Finder.
-- Local image previews have a 10 MB limit. Text previews have a 2 MB limit.
+- Local image previews have a 10 MB limit. Text previews have a 2 MB limit. Markdown over 128 KB opens as source to avoid expensive rich-text layout.
 - File trees stop at 12 levels and 500 entries per directory. They skip hidden files, `node_modules`, and Python caches.
 - Metadata parsing supports common name and description fields, not arbitrary YAML.
 
@@ -91,7 +91,19 @@ To build a universal DMG for both Apple silicon and Intel, install full Xcode an
 VERSION=0.2.0 ./scripts/build-dmg.sh
 ```
 
+To measure process launch to the first visible window on a logged-in Mac:
+
+```sh
+swift scripts/measure-launch.swift "dist/Agent Skill Manager.app/Contents/MacOS/SkillHub"
+```
+
+The script starts and closes three app instances. It does not measure downloaded-app security checks or when all skill previews finish loading.
+
 ## Releases
+
+See [CHANGELOG.md](CHANGELOG.md) for release history and unreleased changes. Add user-facing changes under `Unreleased` with each change. Before tagging, move those entries into a new version section, add its release date, and update the comparison links. Keep an empty `Unreleased` section for the next changes.
+
+The release workflow uses the matching version section for its notes and fails if that section is missing or empty.
 
 Pull requests and pushes to `main` run tests and build a universal DMG. GitHub Actions saves the DMG and checksum as workflow artifacts.
 

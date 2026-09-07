@@ -26,6 +26,11 @@ jobs:
         run: |
           [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Expected vX.Y.Z tag'; exit 1; }
           echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+      - name: Extract version changelog
+        run: |
+          python3 scripts/test_release_notes.py
+          mkdir -p dist
+          python3 scripts/release-notes.py "$VERSION" > dist/release-notes.md
       - run: swift test
       - run: ./scripts/build-dmg.sh
       - uses: actions/upload-artifact@v4
@@ -34,6 +39,7 @@ jobs:
           path: |
             dist/*.dmg
             dist/*.sha256
+            dist/release-notes.md
           if-no-files-found: error
   publish:
     needs: build
@@ -51,7 +57,11 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
         run: |
-          cat > notes.md <<'NOTES'
+          cp dist/release-notes.md notes.md
+          cat >> notes.md <<'NOTES'
+
+          ## Installation
+
           Universal macOS app (Apple silicon and Intel), macOS 13+.
 
           Open the DMG and drag Agent Skill Manager into Applications.
@@ -64,4 +74,4 @@ jobs:
           This removes the downloaded-app quarantine protection for this app; it does not notarize it or disable Gatekeeper system-wide.
           SHA-256 checksums are included alongside the DMG.
           NOTES
-          gh release create "$TAG" dist/* --verify-tag --title "Agent Skill Manager $TAG" --notes-file notes.md --generate-notes
+          gh release create "$TAG" dist/*.dmg dist/*.sha256 --verify-tag --title "Agent Skill Manager $TAG" --notes-file notes.md
