@@ -129,6 +129,7 @@ private struct LocalMarkdownImage: View {
                     .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
             }
         }.task(id: url) {
+            image = nil
             let target = url
             let loaded = await Task.detached(priority: .userInitiated) {
                 LocalImageTransfer(image: target.flatMap { LocalImageLoader.load($0) })
@@ -145,18 +146,9 @@ private struct LocalImageTransfer: @unchecked Sendable {
     let image: NSImage?
 }
 
-private enum LocalImageLoader {
-    static func load(_ url: URL) -> NSImage? {
-        guard url.isFileURL,
-              let values = try? url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey]),
-              values.isRegularFile == true, (values.fileSize ?? Int.max) <= 10_000_000 else { return nil }
-        return NSImage(contentsOf: url)
-    }
-}
-
 private struct LocalInlineImages: InlineImageProvider {
     func image(with url: URL, label: String) async throws -> Image {
-        guard let image = LocalImageLoader.load(url) else { return Image(systemName: "photo") }
+        guard let image = LocalImageLoader.load(url, maxPixelSize: 256) else { return Image(systemName: "photo") }
         return Image(nsImage: image)
     }
 }
