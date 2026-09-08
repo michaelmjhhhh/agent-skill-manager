@@ -75,6 +75,33 @@ final class LaunchAndScrollTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: storage.file), "invalid")
     }
 
+    @MainActor func testExplicitRefreshAdvancesGenerationForEqualShallowSkills() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let agents = root.appendingPathComponent("agents")
+        let claude = root.appendingPathComponent("claude")
+        try FileManager.default.createDirectory(at: agents.appendingPathComponent("skill/nested"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: claude, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try "---\nname: Stable\n---".write(to: agents.appendingPathComponent("skill/SKILL.md"), atomically: true, encoding: .utf8)
+        let defaults = UserDefaults.standard
+        let oldAgents = defaults.object(forKey: "agentsPath")
+        let oldClaude = defaults.object(forKey: "claudePath")
+        defer {
+            if let oldAgents { defaults.set(oldAgents, forKey: "agentsPath") } else { defaults.removeObject(forKey: "agentsPath") }
+            if let oldClaude { defaults.set(oldClaude, forKey: "claudePath") } else { defaults.removeObject(forKey: "claudePath") }
+        }
+        defaults.set(agents.path, forKey: "agentsPath")
+        defaults.set(claude.path, forKey: "claudePath")
+        let store = HubStore(storage: CollectionStorage(file: root.appendingPathComponent("collection.json")))
+        await store.refresh()
+        let first = store.agents
+        let generation = store.refreshGeneration
+        try "new child".write(to: agents.appendingPathComponent("skill/nested/new.txt"), atomically: true, encoding: .utf8)
+        await store.refresh()
+        XCTAssertEqual(first, store.agents, "Only an unloaded descendant changed")
+        XCTAssertEqual(store.refreshGeneration, generation + 1)
+    }
+
     func testParsedMarkdownIsReusedAndLargeMarkdownUsesSource() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

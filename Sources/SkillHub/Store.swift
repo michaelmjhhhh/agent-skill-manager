@@ -9,6 +9,7 @@ import AppKit
     @Published var error: String?
     @Published var scanning = false
     @Published private(set) var collectionLoading = true
+    @Published private(set) var refreshGeneration = 0
     private var collectionLoaded = false
     private var collectionLoadTask: Task<[SavedSkill], Error>?
     private var lastRefresh: Date?
@@ -57,6 +58,8 @@ import AppKit
         case .failure(let error): if !claude.isEmpty { claude = [] }; messages["claude"] = "\(c): \(error.localizedDescription)"
         }
         if scanMessages != messages { scanMessages = messages }
+        // Loaded descendants may change even when the shallow scan is equal.
+        refreshGeneration &+= 1
         lastPaths = [a, c]
         lastRefresh = Date()
         scanning = false

@@ -22,7 +22,10 @@ final class SkillHubTests: XCTestCase {
         XCTAssertEqual(skills.count, 2)
         XCTAssertEqual(skills[0].name, "Design helper")
         XCTAssertEqual(skills[0].summary, "Make beautiful things with intention.")
-        XCTAssertNotNil(skills[0].files.first { $0.url.lastPathComponent == "subskills" }?.children)
+        let subskills = try XCTUnwrap(skills[0].files.first { $0.url.lastPathComponent == "subskills" })
+        XCTAssertTrue(subskills.isDirectory)
+        XCTAssertFalse(subskills.childrenLoaded)
+        XCTAssertEqual(SkillScanner.loadChildren(of: subskills).nodes.first?.url.lastPathComponent, "review")
         XCTAssertEqual(skills[1].document?.lastPathComponent, "single.md")
     }
     func testSymlinksAndCycles() throws {
@@ -32,7 +35,12 @@ final class SkillHubTests: XCTestCase {
         let skills = try SkillScanner.scan(path: root.path)
         XCTAssertEqual(skills.count, 2)
         XCTAssertNotNil(skills.first { $0.name == "linked" }?.document)
-        XCTAssertEqual(skills[0].files.first { $0.url.lastPathComponent == "loop" }?.children?.count, 0)
+        let loop = try XCTUnwrap(skills.first { $0.name == "original" }?.files.first { $0.url.lastPathComponent == "loop" })
+        XCTAssertTrue(loop.isDirectory)
+        XCTAssertFalse(loop.childrenLoaded)
+        let cycle = SkillScanner.loadChildren(of: loop)
+        XCTAssertEqual(cycle.nodes, [])
+        XCTAssertTrue(cycle.notice?.contains("Cycle detected") == true)
     }
     func testCollectionRoundTripAndInvalidData() throws {
         let storage = CollectionStorage(file: root.appendingPathComponent("data/collection.json"))
@@ -52,6 +60,8 @@ final class SkillHubTests: XCTestCase {
         let skills = try SkillScanner.scan(path: root.path)
         XCTAssertEqual(skills.count, 1)
         XCTAssertNil(skills[0].document)
-        XCTAssertEqual(skills[0].files.first?.children?.first?.url.lastPathComponent, "SKILL.md")
+        let child = try XCTUnwrap(skills[0].files.first)
+        XCTAssertTrue(child.isDirectory)
+        XCTAssertEqual(SkillScanner.loadChildren(of: child).nodes.first?.url.lastPathComponent, "SKILL.md")
     }
 }
