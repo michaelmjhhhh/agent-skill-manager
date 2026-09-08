@@ -39,7 +39,7 @@ struct InstalledView: View {
                             ForEach(filtered) { skill in
                                 VStack(alignment: .leading, spacing: 6) {
                                     HStack(alignment: .top, spacing: 8) {
-                                        if !skill.files.isEmpty {
+                                        if !skill.files.isEmpty || skill.omittedCount > 0 || skill.notice != nil {
                                             Button {
                                                 if expanded.contains(skill.id) { expanded.remove(skill.id) } else { expanded.insert(skill.id) }
                                             } label: { Image(systemName: expanded.contains(skill.id) ? "chevron.down" : "chevron.right").font(.system(size: 10)).frame(width: 14, height: 20) }.buttonStyle(.plain).help("Expand files")
@@ -52,7 +52,9 @@ struct InstalledView: View {
                                         }.buttonStyle(.plain)
                                     }
                                     if expanded.contains(skill.id) {
-                                        SkillFileTree(nodes: skill.files, selectedFile: selectedFile) { file in
+                                        SkillFileTree(nodes: skill.files, rootOmittedCount: skill.omittedCount,
+                                                      rootNotice: skill.notice, refreshGeneration: store.refreshGeneration,
+                                                      selectedFile: selectedFile) { file in
                                             selectedID = skill.id
                                             selectedFile = file
                                         }
@@ -85,7 +87,10 @@ struct InstalledView: View {
                             }.controlSize(.small)
                         }.frame(maxWidth: .infinity, alignment: .leading).padding(18)
                         Divider()
-                        if let file = selectedFile { DocumentView(url: file).id(file) }
+                        if let file = selectedFile {
+                            DocumentView(url: file, refreshGeneration: store.refreshGeneration)
+                                .id("\(file.path)#\(store.refreshGeneration)")
+                        }
                         else { EmptyState(icon: "folder", title: "Select a file", detail: "Expand the skill’s file tree and select a document to preview it.") }
                     } else { EmptyState(icon: "doc.text.magnifyingglass", title: "Select a skill", detail: "Select a skill to read its instructions. Expand its file tree to view references and subskills.") }
                 }.frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
@@ -129,12 +134,24 @@ struct InstalledView: View {
     }
 }
 
+private struct DocumentLoadKey: Hashable {
+    let url: URL
+    let refreshGeneration: Int
+}
+
 struct DocumentView: View {
     let url: URL
+    let refreshGeneration: Int
     @State private var snapshot: DocumentSnapshot?
     private var text: String { snapshot?.text ?? "" }
     @State private var error: String?
     @State private var raw = false
+
+    init(url: URL, refreshGeneration: Int = 0) {
+        self.url = url
+        self.refreshGeneration = refreshGeneration
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -163,7 +180,7 @@ struct DocumentView: View {
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }.background(ScrollPolicyUpdate())
-        .task(id: url) {
+        .task(id: DocumentLoadKey(url: url, refreshGeneration: refreshGeneration)) {
             error = nil
             snapshot = nil
             do {

@@ -17,12 +17,20 @@ struct CollectionView: View {
     @State private var deleting: SavedSkill?
     var categories: [String] { Array(Set(store.collection.map(\.category).filter { !$0.isEmpty })).sorted() }
     var items: [SavedSkill] {
-        store.collection.filter {
-            (category == "All categories" || $0.category == category) && (!favorites || $0.favorite) &&
+        Self.displayedItems(from: store.collection, category: category, sort: sort, favoritesOnly: favorites, search: search)
+    }
+
+    /// Pure to keep the filtering/sorting cost measurable without constructing a window.
+    static func displayedItems(from source: [SavedSkill], category: String, sort: String,
+                               favoritesOnly: Bool, search: String) -> [SavedSkill] {
+        source.filter {
+            (category == "All categories" || $0.category == category) && (!favoritesOnly || $0.favorite) &&
             (search.isEmpty || "\($0.name) \($0.summary) \($0.category) \($0.url)".localizedCaseInsensitiveContains(search))
         }.sorted { sort == "Newest" ? $0.createdAt > $1.createdAt : $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
+
     var body: some View {
+        let displayedItems = items
         VStack(alignment: .leading, spacing: 22) {
             HStack {
                 VStack(alignment: .leading, spacing: 7) {
@@ -37,7 +45,7 @@ struct CollectionView: View {
                               exportCollection: store.exportCollection)
             if store.collectionLoading {
                 ProgressView("Loading collection…").frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if items.isEmpty {
+            } else if displayedItems.isEmpty {
                 VStack {
                     EmptyState(icon: "bookmark", title: store.collection.isEmpty ? "No saved skills" : "No matching skills", detail: store.collection.isEmpty ? "Add a skill to your collection. Saving an entry does not install it." : "Try another search or category.")
                     if store.collection.isEmpty { Button("Add your first skill") { draft = SavedSkill() }.buttonStyle(.borderedProminent).padding(.bottom, 80) }
@@ -45,7 +53,7 @@ struct CollectionView: View {
             } else {
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 310), spacing: 18)], alignment: .leading, spacing: 18) {
-                        ForEach(items) { skill in card(skill) }
+                        ForEach(displayedItems) { skill in card(skill) }
                     }.padding(.bottom, 12)
                 }
             }
@@ -68,7 +76,7 @@ struct CollectionView: View {
         }
         .alert("Remove from collection?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
             Button("Cancel", role: .cancel) { deleting = nil }
-            Button("Remove", role: .destructive) { if let deleting { store.delete(deleting) }; deleting = nil }
+            Button("Remove", role: .destructive) { if let deleting { Task { _ = await store.delete(deleting) } }; deleting = nil }
         } message: { Text("This only removes the bookmark. Installed files are never deleted.") }
     }
     private func chooseInstallationDirectory() {
@@ -106,7 +114,7 @@ struct CollectionView: View {
         SavedSkillCard(skill: skill, favorite: {
             var updated = skill
             updated.favorite.toggle()
-            store.save(updated)
+            Task { _ = await store.save(updated) }
         }, install: { installing = skill }, edit: { draft = skill }, remove: { deleting = skill })
     }
 }
@@ -140,7 +148,9 @@ struct CollectionEditor: View {
                 Button("Save skill") {
                     skill.name = skill.name.trimmingCharacters(in: .whitespacesAndNewlines)
                     skill.category = skill.category.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if store.save(skill) { dismiss() }
+                    Task {
+                        if await store.save(skill) { dismiss() }
+                    }
                 }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction).disabled(skill.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !validURL)
             }
         }.padding(30).frame(width: 500)
