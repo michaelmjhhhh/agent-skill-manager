@@ -158,6 +158,46 @@ final class PerformanceTests: XCTestCase {
         catch { }
     }
 
+    func testTenThousandImportUsesIDSetAndConsecutiveWritesKeepAllItems() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = CollectionStorage(file: root.appendingPathComponent("collection.json"))
+        let store = await MainActor.run { HubStore(storage: storage) }
+        await store.loadCollection()
+        let existing = SavedSkill(name: "existing")
+        let firstSave = await store.save(existing)
+        XCTAssertTrue(firstSave)
+        let imported = (0..<10_000).map { SavedSkill(name: "item-\($0)") } + [existing]
+        let start = Date()
+        let merged = await store.mergeImported(imported)
+        XCTAssertTrue(merged)
+        await store.loadCollection()
+        print("10,000 item import merge seconds: \(Date().timeIntervalSince(start))")
+        let importedCount = await store.collection.count
+        XCTAssertEqual(importedCount, 10_001)
+        let edits = (0..<8).map { SavedSkill(name: "edit-\($0)") }
+        for edit in edits {
+            let accepted = await store.save(edit)
+            XCTAssertTrue(accepted)
+        }
+        await store.loadCollection()
+        let finalCount = await store.collection.count
+        XCTAssertEqual(finalCount, 10_009)
+    }
+
+    func testRepeatedCollectionResultComputations() {
+        let source = (0..<10_000).map { SavedSkill(name: "item-\($0)", summary: "searchable") }
+        let repetitions = 20
+        let start = Date()
+        var resultCount = 0
+        for _ in 0..<repetitions {
+            resultCount += CollectionView.displayedItems(from: source, category: "All categories", sort: "Name", favoritesOnly: false, search: "searchable").count
+        }
+        let elapsed = Date().timeIntervalSince(start)
+        print("Repeated collection results: \(repetitions) passes, \(source.count * repetitions) filter visits, seconds: \(elapsed)")
+        XCTAssertEqual(resultCount, source.count * repetitions)
+    }
+
     func testDocumentCacheInvalidationAndBudget() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

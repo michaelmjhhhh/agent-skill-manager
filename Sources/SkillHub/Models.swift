@@ -252,17 +252,35 @@ struct SkillScanner {
     }
 }
 
-struct CollectionStorage {
+struct CollectionStorage: Sendable {
     let file: URL
+    private let saveHook: (@Sendable ([SavedSkill]) throws -> Void)?
+
+    init(file: URL, saveHook: (@Sendable ([SavedSkill]) throws -> Void)? = nil) {
+        self.file = file
+        self.saveHook = saveHook
+    }
+
     static var standard: CollectionStorage {
         let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         return CollectionStorage(file: root.appendingPathComponent("SkillHub/collection.json"))
     }
+
+    static func canExport(to destination: URL, withoutOverwriting storage: CollectionStorage) -> Bool {
+        let destinationPath = destination.standardizedFileURL.resolvingSymlinksInPath().path
+        let storagePath = storage.file.standardizedFileURL.resolvingSymlinksInPath().path
+        return destinationPath != storagePath
+    }
+
     func load() throws -> [SavedSkill] {
         guard FileManager.default.fileExists(atPath: file.path) else { return [] }
         return try JSONDecoder().decode([SavedSkill].self, from: Data(contentsOf: file))
     }
     func save(_ items: [SavedSkill]) throws {
+        if let saveHook {
+            try saveHook(items)
+            return
+        }
         try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

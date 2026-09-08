@@ -3,6 +3,34 @@ import XCTest
 import SwiftUI
 @testable import SkillHub
 
+private final class FailSecondSave: @unchecked Sendable {
+    private let lock = NSLock()
+    private let releaseFirst = DispatchSemaphore(value: 0)
+    private var firstStarted = false
+    private var saves = 0
+
+    func save(_ items: [SavedSkill]) throws {
+        lock.lock()
+        saves += 1
+        let saveNumber = saves
+        if saveNumber == 1 { firstStarted = true }
+        lock.unlock()
+        if saveNumber == 1 {
+            releaseFirst.wait()
+        } else {
+            throw NSError(domain: "TestSave", code: 2, userInfo: [NSLocalizedDescriptionKey: "second write failed"])
+        }
+    }
+
+    func hasFirstStarted() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return firstStarted
+    }
+
+    func release() { releaseFirst.signal() }
+}
+
 final class LaunchAndScrollTests: XCTestCase {
     @MainActor func testScrollPolicyCoalescesUpdatesPerWindow() {
         ScrollBehavior.flush()
@@ -57,7 +85,8 @@ final class LaunchAndScrollTests: XCTestCase {
         await store.loadCollection()
         XCTAssertEqual(store.collection, [skill])
         XCTAssertFalse(store.collectionLoading)
-        XCTAssertTrue(store.save(SavedSkill(name: "New")))
+        let saved = await store.save(SavedSkill(name: "New"))
+        XCTAssertTrue(saved)
         await store.loadCollection()
         XCTAssertEqual(store.collection.count, 2, "Repeated load must not overwrite edits")
     }
@@ -71,7 +100,8 @@ final class LaunchAndScrollTests: XCTestCase {
         let store = HubStore(storage: storage)
         await store.loadCollection()
         XCTAssertNotNil(store.error)
-        XCTAssertFalse(store.save(SavedSkill(name: "Do not overwrite")))
+        let saved = await store.save(SavedSkill(name: "Do not overwrite"))
+        XCTAssertFalse(saved)
         XCTAssertEqual(try String(contentsOf: storage.file), "invalid")
     }
 
@@ -100,6 +130,56 @@ final class LaunchAndScrollTests: XCTestCase {
         await store.refresh()
         XCTAssertEqual(first, store.agents, "Only an unloaded descendant changed")
         XCTAssertEqual(store.refreshGeneration, generation + 1)
+    }
+
+    @MainActor func testConsecutiveAsyncMutationsKeepBothSnapshots() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = HubStore(storage: CollectionStorage(file: root.appendingPathComponent("collection.json")))
+        await store.loadCollection()
+        async let first = store.save(SavedSkill(name: "first"))
+        async let second = store.save(SavedSkill(name: "second"))
+        let firstResult = await first
+        let secondResult = await second
+        XCTAssertTrue(firstResult)
+        XCTAssertTrue(secondResult)
+        await store.loadCollection()
+        XCTAssertEqual(Set(store.collection.map(\.name)), Set(["first", "second"]))
+    }
+
+    @MainActor func testSuccessfulQueuedSnapshotRemainsCommittedWhenNextWriteFails() async throws {
+        let gate = FailSecondSave()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = CollectionStorage(file: root.appendingPathComponent("collection.json"), saveHook: { items in
+            try gate.save(items)
+        })
+        let store = HubStore(storage: storage)
+        await store.loadCollection()
+        let firstTask = Task { await store.save(SavedSkill(name: "A")) }
+        while !gate.hasFirstStarted() { await Task.yield() }
+        let secondTask = Task { await store.save(SavedSkill(name: "B")) }
+        for _ in 0..<10 { await Task.yield() }
+        gate.release()
+        let firstResult = await firstTask.value
+        let secondResult = await secondTask.value
+        XCTAssertTrue(firstResult)
+        XCTAssertFalse(secondResult)
+        XCTAssertEqual(store.collection.map(\.name), ["A"])
+    }
+
+    @MainActor func testWriteFailureIsReportedAndDoesNotPublishSnapshot() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let blockedParent = root.appendingPathComponent("blocked")
+        try Data("not a directory".utf8).write(to: blockedParent)
+        let store = HubStore(storage: CollectionStorage(file: blockedParent.appendingPathComponent("collection.json")))
+        await store.loadCollection()
+        let accepted = await store.save(SavedSkill(name: "will fail"))
+        XCTAssertFalse(accepted)
+        XCTAssertTrue(store.collection.isEmpty)
+        XCTAssertNotNil(store.error)
     }
 
     func testParsedMarkdownIsReusedAndLargeMarkdownUsesSource() async throws {

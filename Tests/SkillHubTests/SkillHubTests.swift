@@ -52,6 +52,16 @@ final class SkillHubTests: XCTestCase {
         XCTAssertThrowsError(try storage.load())
         XCTAssertEqual(try String(contentsOf: storage.file), "broken JSON")
     }
+    func testExportDestinationRejectsActiveCollectionAndSymlinkAlias() throws {
+        let storage = CollectionStorage(file: root.appendingPathComponent("collection.json"))
+        try storage.save([])
+        XCTAssertFalse(CollectionStorage.canExport(to: storage.file, withoutOverwriting: storage))
+        let alias = root.appendingPathComponent("collection-alias.json")
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: storage.file)
+        XCTAssertFalse(CollectionStorage.canExport(to: alias, withoutOverwriting: storage))
+        XCTAssertTrue(CollectionStorage.canExport(to: root.appendingPathComponent("other.json"), withoutOverwriting: storage))
+    }
+
     func testMissingRootIsReported() {
         XCTAssertThrowsError(try SkillScanner.scan(path: root.appendingPathComponent("missing").path))
     }
